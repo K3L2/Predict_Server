@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>PCB 제품 분류 및 양품 판별</title>
+    <style>
+        body {
+            margin-top: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        #name {
+            margin-top: 0;
+            background-color: gray;
+            color: black;
+            padding: 20px;
+            width: 100%;
+            text-align: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+        }
+        #content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex: 1;
+            width: 100%;
+            margin-top: 60px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #uploadForm {
+            width: 90%;
+            max-width: 1300px;
+            padding: 20px 40px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            text-align: center;
+            background-color: #f9f9f9;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+        #result-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            margin-top: 20px;
+        }
+        .image-box {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .image-container {
+            width: 100%;
+            max-width: 700px;
+            aspect-ratio: 3 / 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid #ccc;
+            overflow: hidden;
+            padding: 0 20px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        .image-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .image-label {
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        #downloadLink {
+            margin-top: 20px;
+            display: none;
+        }
+        #result {
+            margin-top: 20px;
+            text-align: left;
+        }
+        .check-box {
+            position: absolute;
+            background-color: transparent;
+            border: 2px solid lightgreen;
+            width: 10px;
+            height: 10px;
+
+        }
+        .check-box-label {
+            position: absolute;
+            background-color: transparent;
+            color: red;
+            font-weight: 500;
+            transform: translate(-50%, -20px);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 300px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<h1 id="name">PCB 제품 분류 및 양품 판별</h1>
+<div id="content">
+    <div id="uploadForm">
+        <h2>파일 업로드</h2>
+        <form id="form" enctype="multipart/form-data">
+            <input type="file" id="file" name="file" accept="image/*">
+            <br><br>
+            <button type="button" onclick="uploadFile()">업로드</button>
+            <button type="button" onclick="downloadFile()">다운로드</button>
+        </form>
+        <div id="result-container">
+            <div id="original-image" class="image-box">
+                <div class="image-container"></div>
+                <div class="image-label">분석 전</div>
+            </div>
+            <div id="processed-image" class="image-box">
+                <div class="image-container"></div>
+                <div class="image-label">분석 후</div>
+            </div>
+        </div>
+        <div id="result"></div>
+        <div id="downloadLink"></div>
+    </div>
+</div>
+
+<div id="loadingModal" class="modal">
+    <div class="modal-content">
+        <p>처리중입니다...</p>
+    </div>
+</div>
+
+<script>
+    function uploadFile() {
+        const fileInput = document.getElementById('file');
+        if (fileInput.files.length === 0) {
+            alert('파일을 선택해주세요.');
+            return;
+        }
+
+        const file = fileInput.files[0];
+        const formData = new FormData(document.getElementById('form'));
+
+        // 원본 이미지 표시
+        const originalImageDiv = document.getElementById('original-image').querySelector('.image-container');
+        const originalImg = document.createElement('img');
+        originalImg.src = URL.createObjectURL(file);
+        originalImageDiv.innerHTML = '';
+        originalImageDiv.appendChild(originalImg);
+
+        // 모달 표시
+        document.getElementById('loadingModal').style.display = 'block';
+
+        // 서버에 업로드
+        fetch('https://bc50-118-34-210-67.ngrok-free.app/predict', {
+            method: 'POST',
+            mode: 'cors',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                console.log('서버에서 받은 데이터:', data);
+
+                // 결과 출력
+                const resultDiv = document.getElementById('result');
+                resultDiv.innerHTML = `<p>서버 응답: ${JSON.stringify(data)}</p>`;
+
+                // 처리된 이미지 표시
+                const processedImageDiv = document.getElementById('processed-image').querySelector('.image-container');
+                processedImageDiv.innerHTML = '';
+
+                const processedImg = document.createElement('img');
+                processedImg.src = 'static/testIMG1.jpg';  // 정적 리소스 경로 사용
+                processedImg.onerror = function() {
+                    console.error('이미지 로드 실패:', this.src);
+                    this.src = 'static/testIMG1.jpg';  // 대체 경로 시도
+                };
+
+                processedImageDiv.appendChild(processedImg);
+
+                // 초록 네모와 텍스트 추가
+                const coordinates = [
+                    { x1: 240.54519653320312, y1: 136.817138671875, x2: 245.6338653564453, y2: 145.1270751953125, label: 'mouse_bite_0.87' },
+                    { x1: 115.35466003417969, y1: 108.51517486572266, x2: 123.11701965332031, y2: 114.64930725097656, label: 'mouse_bite_0.87' }
+                ];
+
+                coordinates.forEach(coordinates => {
+                    const checkBox = document.createElement('div');
+                    checkBox.className = 'check-box';
+                    checkBox.style.left = `${coordinates.x1}px`;
+                    checkBox.style.top = `${coordinates.y1}px`;
+
+                    const checkBoxLabel = document.createElement('div');
+                    checkBoxLabel.className = 'check-box-label';
+                    checkBoxLabel.style.left = `${(coordinates.x1 + coordinates.x2) / 2}px`;
+                    checkBoxLabel.style.top = `${coordinates.y1}px`;
+                    checkBoxLabel.textContent = coordinates.label;
+
+                    processedImageDiv.appendChild(checkBox);
+                    processedImageDiv.appendChild(checkBoxLabel);
+                });
+            })
+            .catch(error => {
+                console.error('오류 발생:', error);
+                alert('오류 발생: ' + error.message);
+            })
+            .finally(() => {
+                // 모달 숨기기
+                document.getElementById('loadingModal').style.display = 'none';
+            });
+    }
+
+    function downloadFile() {
+        // 다운로드 링크 생성
+        const link = document.createElement('a');
+
+        // 웹 서버의 정적 리소스 경로로 수정
+        link.href = 'static/testIMG1-checkbox.jpg';
+
+        link.download = 'static/testIMG1-checkbox.jpg';
+
+        // 링크를 클릭하여 다운로드 시작
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+</script>
+</body>
+</html>
