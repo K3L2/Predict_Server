@@ -7,3 +7,5 @@
 07.15. 명세서 기조로 분석서버에 Model Load 및 return 구현 완료
 
 07.19. 분석서버에서도 이미지 load 처리되도록 구현 완료
+
+07.22. index.html 추가 및 app.get('/')시 index.html 접근하도록 수정
